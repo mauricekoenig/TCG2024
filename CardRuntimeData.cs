@@ -10,9 +10,10 @@ public class CardRuntimeData : MonoBehaviour {
     [SerializeField] private int cost;
     [SerializeField] private int attack;
     [SerializeField] private int defense;
-    [SerializeField] private bool isInPlay;
-    [SerializeField] private bool isPlayable;
     [SerializeField] private BattlePosition battlePosition;
+    [SerializeField] private CardLocation location;
+
+    [SerializeField] private bool isPlayable;
 
     public event Action OnPropertyChanged;
     public event Action OnBattlePositionChanged;
@@ -32,10 +33,10 @@ public class CardRuntimeData : MonoBehaviour {
         get { return data; }
     }
 
-    public bool IsInPlay {
-        get { return isInPlay; }
+    public CardLocation Location {
+        get { return location; }
         set {
-            isInPlay = value;
+            location = value;
         }
     }
 
@@ -79,7 +80,7 @@ public class CardRuntimeData : MonoBehaviour {
         }
     }
 
-    public void Init (CardData data) {
+    public void Init (CardData data, CardLocation location = CardLocation.InHand) {
 
         this.data = data;
         name = data.name;
@@ -87,6 +88,7 @@ public class CardRuntimeData : MonoBehaviour {
         attack = data.Attack;
         defense = data.Defense;
         battlePosition = BattlePosition.None;
+        this.location = location;
         OnPropertyChanged?.Invoke();
     }
 
