@@ -10,6 +10,7 @@ public class CardInteractable : MonoBehaviour, IInteractable {
     private Vector3 startPosition;
     public GameObject shader;
     public bool dragging;
+    private bool animating;
 
     private void Start() {
         data = GetComponent<CardRuntimeData>();
@@ -36,12 +37,23 @@ public class CardInteractable : MonoBehaviour, IInteractable {
         if (shader.activeInHierarchy) return;
         shader.SetActive(true);
     }
-
     public void DisableShader () {
         if (!shader.activeInHierarchy) return;
         shader.SetActive(false);
     }
+    public void ChangeBattlePosition() {
 
+        if (animating) return;
+        animating = true;
+
+        Vector3 cardRotation = data.BattlePosition == BattlePosition.Attack ? new Vector3(0, 0, 90) : new Vector3(0, 0, 0);
+        BattlePosition battlePosition = data.BattlePosition == BattlePosition.Attack ? BattlePosition.Defense : BattlePosition.Attack;
+
+        transform.DORotate(cardRotation, .5f).OnComplete(() => {
+            data.BattlePosition = battlePosition;
+            animating = false;
+        });
+    }
     public void OnHoverExit() {
         
         switch (data.Location) {
@@ -59,7 +71,12 @@ public class CardInteractable : MonoBehaviour, IInteractable {
 
     public void OnLeftClick() {
 
-        Debug.Log("OnLeftClick!");
+        switch (data.Location) {
+
+            case CardLocation.InPlay:
+                ChangeBattlePosition();
+                break;
+        }
     }
 
     public void OnRightClick() {
