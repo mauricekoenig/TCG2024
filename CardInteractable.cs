@@ -1,37 +1,24 @@
 using DG.Tweening;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 
 [RequireComponent(typeof(CardRuntimeData))]
 public class CardInteractable : MonoBehaviour, IInteractable {
 
     private CardRuntimeData data;
-    private Vector3 startPosition;
     public GameObject shader;
     public bool dragging;
     private bool animating;
+
+    private Vector3 hoverStartPosition;
+    private Vector3 dragStartPosition;
 
     private void Start() {
         data = GetComponent<CardRuntimeData>();
     }
 
-    public void OnHover() {
-
-        switch (data.Location) {
-
-            case CardLocation.InHand:
-
-                startPosition = transform.position;
-                transform.position += new Vector3(0, .5f, -1);
-                EnableShader();
-                break;
-
-            case CardLocation.InPlay:
-                EnableShader();
-                break;
-        }
-    }
 
     public void EnableShader () {
         if (shader.activeInHierarchy) return;
@@ -54,12 +41,29 @@ public class CardInteractable : MonoBehaviour, IInteractable {
             animating = false;
         });
     }
+
+    public void OnHover() {
+
+        switch (data.Location) {
+
+            case CardLocation.InHand:
+
+                hoverStartPosition = transform.position;
+                transform.position += new Vector3(0, .5f, -1);
+                EnableShader();
+                break;
+
+            case CardLocation.InPlay:
+                EnableShader();
+                break;
+        }
+    }
     public void OnHoverExit() {
         
         switch (data.Location) {
 
             case CardLocation.InHand:
-                transform.position = startPosition;
+                transform.position = hoverStartPosition;
                 DisableShader();
                 break;
 
@@ -68,6 +72,7 @@ public class CardInteractable : MonoBehaviour, IInteractable {
                 break;
         }
     }
+
 
     public void OnLeftClick() {
 
@@ -78,19 +83,49 @@ public class CardInteractable : MonoBehaviour, IInteractable {
                 break;
         }
     }
-
     public void OnRightClick() {
 
         Debug.Log("OnRightClick");
     }
 
-    public void OnDrag() {
+    public void OnDrag () {
 
+        dragStartPosition = transform.position;
         dragging = true;
     }
 
     public void OnDragExit() {
 
-        dragging = false;
+        if (dragging) {
+            animating = true;
+            transform.DOMove(dragStartPosition, 3f).OnComplete(() => {
+                animating = false;
+                dragging = false;
+            });
+        }
+    }
+
+    public bool IsMovable () {
+
+        return (data.Location == CardLocation.InHand && data.IsPlayable);
+    }
+
+    public bool IsAnimating () {
+        return animating;
+    }
+
+    private void Update() {
+
+        if (!dragging) return;
+        HandleDragging();
+    }
+
+    public void HandleDragging () {
+
+        float zDistance = 5f;
+        Vector3 mousePosition = Input.mousePosition;
+        mousePosition.z = zDistance;
+
+        transform.position = Camera.main.ScreenToWorldPoint(mousePosition);
     }
 }
