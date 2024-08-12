@@ -1,78 +1,107 @@
 
 
 
+using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 public class InputController : MonoBehaviour {
 
     private Camera mainCamera;
     public LayerMask HoverMask;
-
-    private IInteractable currentHoveredObject;
-    public bool Foo;
+    private IInteractable currentSelectedObject;
+    [SerializeField] private InputState currentState;
 
     private void Start() {
 
         mainCamera = Camera.main;
-        currentHoveredObject = null;
+        currentSelectedObject = null;
     }
 
     public void Update() {
 
         HandleInput();
-        Foo = (currentHoveredObject != null);
     }
 
     private void HandleInput () {
 
-        OnLeftClick();
-        OnRightClick();
-        OnHovering();
+        LeftMouseDown();
+        RightButtonUp();
+        Hovering();
     }
-    private void OnLeftClick () {
+    private void LeftMouseDown () {
 
         if (Input.GetMouseButtonDown(0)) {
 
-            Ray ray = GetRay();
+            if (currentState == InputState.Dragging) return;
+
+            Ray ray = GetRayFromCamera();
 
             if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, HoverMask)) {
 
                 if (!hit.collider.TryGetComponent<IInteractable>(out IInteractable interactable)) return;
-                if (currentHoveredObject != null && currentHoveredObject != interactable) currentHoveredObject.OnHoverExit();
-                currentHoveredObject = interactable;
+                if (interactable.IsAnimating()) return;
 
-                Debug.Log("OnLeftClick!");
+                if (currentSelectedObject != null && currentState == InputState.Hovering) {
+                    currentSelectedObject.OnHoverExit();
+                    currentState = InputState.None;
+                }
+
+                currentSelectedObject = interactable;
+
+                if (interactable.IsMovable()) { // If card can be played. In Hand & enough Resources.
+                    currentState = InputState.Dragging;
+                    interactable.OnDrag();
+                    return;
+                }
+
+                interactable.OnLeftClick();
             }
-
 
         }
     }
-    private void OnRightClick() {
+    private void RightButtonUp() {
 
+        if (Input.GetMouseButtonUp(1)) {
+
+            if (currentState == InputState.Dragging) {
+                if (currentSelectedObject == null) return;
+                if (currentSelectedObject.IsAnimating()) return;
+                currentSelectedObject.OnDragExit();
+                currentState = InputState.None;
+            }
+        }
     }
-    private void OnHovering () {
+    private void Hovering () {
 
-        Ray ray = GetRay();
+        if (currentState == InputState.Dragging) return;
+
+        Ray ray = GetRayFromCamera();
         Debug.DrawRay(ray.origin, ray.direction * 20f, Color.red);
 
         if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, HoverMask)) {
 
-            if (!hit.collider.TryGetComponent(out IInteractable interactable)) return;
-            if (currentHoveredObject == interactable) return; // if its the same object.
+            if (!hit.collider.TryGetComponent(out IInteractable interactable)) return; // is not a IInteractable.
+            if (interactable.IsAnimating()) return;
+            if (currentSelectedObject == interactable) return; // if its the same object.
 
-            if (currentHoveredObject != null) currentHoveredObject.OnHoverExit();
-            currentHoveredObject = interactable;
+            if (currentSelectedObject != null) currentSelectedObject.OnHoverExit(); // if there is a preview already.
+
+            currentState = InputState.Hovering;
+            currentSelectedObject = interactable;
             interactable.OnHover();
+            Debug.Log("Hovering");
         }
 
-        else {
-            if (currentHoveredObject == null) return;
-            currentHoveredObject.OnHoverExit();
-            currentHoveredObject = null;
+        else { // if we dont hit a Hoverable Object.
+            if (currentSelectedObject == null) return;
+            currentSelectedObject.OnHoverExit(); // and there is a previous one, Unhover it and reset.
+            currentSelectedObject = null;
+            currentState = InputState.None;
         }
     }
 
-    private Ray GetRay () {
+    private Ray GetRayFromCamera () {
         return mainCamera.ScreenPointToRay(Input.mousePosition);
     }
 }
